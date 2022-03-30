@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Intro to Layers</title>
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+
+      #layerToggle {
+        top: 20px;
+        right: 20px;
+        position: absolute;
+        z-index: 99;
+        background-color: white;
+        border-radius: 8px;
+        padding: 10px;
+        opacity: 0.75;
+      }
+    </style>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.23/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.23/"></script>
+    <script>
+      require([ 
+        "esri/Map", 
+        "esri/views/SceneView",
+        "esri/layers/TileLayer" // Require the TileLayer module
+    ], (Map, SceneView, TileLayer) => {
+           //create transportation layer (must be before map & view!)
+          const transportationLayer = new TileLayer({
+          url: "https://server.arcgisonline.com/arcgis/rest/services/Reference/World_Transportation/MapServer",
+          id: "streets",
+          visible: false
+        });
+        //create housing layer
+        const housingLayer = new TileLayer({
+        url: "https://tiles.arcgis.com/tiles/nGt4QxSblgDfeJn9/arcgis/rest/services/New_York_Housing_Density/MapServer",
+        id: "ny-housing",
+        opacity: 0.9
+  });
+        //create the map
+        const map = new Map({
+        basemap: "oceans",
+        layers: [housingLayer] // layers can be added as an array to the map's constructor
+        });
+        map.layers.add(transportationLayer); //add the transportationLayer
+        //create the sceneview
+        const view = new SceneView({
+        container: "viewDiv",
+        map: map
+      });
+
+      //layers are promises that resolve when loaded;
+      //once the population layer has finished loading, the view to animate to it's initial extent
+      // = the map will zoom into NYC (the population layer's area)
+      view.when(() => {
+          housingLayer.when(() => {
+            view.goTo(housingLayer.fullExtent).catch((error) => {
+              console.error(error);
+            });
+          });
+        });
+      //create variable to reference the checkbox element
+      const streetsLayerToggle = document.getElementById("streetsLayer");
+      //when checkbox is true (checked), set layer's visibility to true
+      streetsLayerToggle.addEventListener("change", ()=>{
+        transportationLayer.visible=streetsLayerToggle.checked
+      })
+      // This event fires each time a layer's LayerView is created for the
+      // specified view instance
+      view.on("layerview-create", (event) => {
+        if (event.layer.id === "ny-housing") {
+          // Explore the properties of the housing layer's layer view here
+          console.log("LayerView for New York housing density created!", event.layerView);
+        }
+        if (event.layer.id === "streets") {
+          // Explore the properties of the transportation layer's layer view here
+          console.log("LayerView for streets created!", event.layerView);
+        }
+      });
+      
+      })
+    </script>
+  </head>
+  <body>
+    <div id="viewDiv"></div>
+    <span id="layerToggle" class="esri-widget"> <input type="checkbox" id="streetsLayer" checked /> Transportation </span>
+  </body>
+</html>
